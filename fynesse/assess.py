@@ -4,6 +4,9 @@ import logging
 
 from .config import *
 from . import access
+import matplotlib.pyplot as plt
+import math
+import osmnx as ox
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -12,7 +15,7 @@ logger = logging.getLogger(__name__)
 import pandas
 import bokeh
 import seaborn
-import matplotlib.pyplot as plt
+
 import sklearn.decomposition as decomposition
 import sklearn.feature_extraction"""
 
@@ -96,6 +99,40 @@ def data() -> Union[pd.DataFrame, Any]:
         logger.error(f"Error during data assessment: {e}")
         print(f"Error assessing data: {e}")
         return None
+
+def plot_city_map(place_name=None, latitude=None, longitude=None,
+                  box_width= 0.1, box_height= 0.1, tags=None):
+   
+    
+   north = latitude + box_height/2
+   south = latitude - box_height/2
+   west = longitude - box_width/2
+   east = longitude + box_width/2
+   bbox = (west, south, east, north)
+
+
+   tags = tags or {"amenity": True}
+   pois = ox.features_from_bbox(bbox, tags)
+
+   graph = ox.graph_from_bbox(bbox)
+   # City area
+   area = ox.geocode_to_gdf(place_name)
+   # Street network
+   nodes, edges = ox.graph_to_gdfs(graph)
+   # Buildings
+   buildings = ox.features_from_bbox(bbox, tags={"building": True})
+
+   fig, ax = plt.subplots(figsize=(6,6))
+   area.plot(ax=ax, color="tan", alpha=0.5)
+   buildings.plot(ax=ax, facecolor="gray", edgecolor="gray")
+   edges.plot(ax=ax, linewidth=1, edgecolor="black", alpha=0.3)
+   nodes.plot(ax=ax, color="black", markersize=1, alpha=0.3)
+   pois.plot(ax=ax, color="green", markersize=5, alpha=1)
+   ax.set_xlim(west, east)
+   ax.set_ylim(south, north)
+   ax.set_title(place_name, fontsize=14)
+   plt.show()
+   return {"place_name": place_name, "lat": latitude, "lon": longitude}
 
 
 def query(data: Union[pd.DataFrame, Any]) -> str:

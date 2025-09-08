@@ -126,3 +126,18 @@ def data() -> Union[pd.DataFrame, None]:
         logger.error(f"Unexpected error loading data: {e}")
         print(f"Error loading data: {e}")
         return None
+
+# function to download files using urls 
+def download_if_not_exists(url, filepath):
+    """Download file if it doesn't exist locally"""
+    if os.path.exists(filepath):
+        print(f"File already exists: {filepath}")
+    else:
+        print(f"Downloading: {url}")
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        with open(filepath, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        print(f"Downloaded to: {filepath}")
+    return filepath

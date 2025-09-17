@@ -141,3 +141,78 @@ def download_if_not_exists(url, filepath):
                 f.write(chunk)
         print(f"Downloaded to: {filepath}")
     return filepath
+
+import os
+import glob
+import re
+from dateutil import parser
+
+
+def extract_date_from_filename(filename):
+    """
+    Extract a date (YYYY-MM-DD) from messy accident report filenames.
+    """
+
+    # Normalize filename
+    name = filename.upper()
+    name = re.sub(r"[^A-Z0-9 ]", " ", name)  # remove commas, dots, brackets
+    name = re.sub(r"\s+", " ", name) 
+
+    # Look for year first
+    year_match = re.search(r"(20\d{2})", name)
+    if not year_match:
+        return None
+    year = year_match.group(1)
+
+    # Try full patterns (day month year)
+    full_match = re.search(r"(\d{1,2}(ST|ND|RD|TH)?\s+[A-Z]+\s+" + year + ")", name)
+    
+    if full_match:
+        date_str = re.sub(r"(\d)(ST|ND|RD|TH)", r"\1", full_match.group(1))
+        return parser.parse(date_str, dayfirst=True).strftime("%Y-%m-%d")
+
+    numeric_match = re.search(r"(\d{1,2}[./-]\d{1,2}[./-]" + year + ")", filename)
+    if numeric_match:
+        return parser.parse(numeric_match.group(1), dayfirst=True).strftime("%Y-%m-%d")
+
+    return None
+
+
+def combine_accident_reports_from_folder(folder_path, output_dir="combined_reports"):
+    """
+    Combines daily accident reports from a folder into yearly Excel files.
+    Extracts the date from messy filenames and adds it as a 'Date' column.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    file_paths = glob.glob(os.path.join(folder_path, "*.xlsx"))
+    
+    if not file_paths:
+        print("⚠️ No Excel files found in the folder.")
+        return
+
+    yearly_data = {}
+
+    for file in file_paths:
+        filename = os.path.basename(file)
+        date = extract_date_from_filename(filename)
+
+        if not date:
+            print(f"⚠️ Could not extract date from {filename}")
+            continue
+
+        year = date.split("-")[0]
+
+        try:
+            df = pd.read_excel(file)
+        except Exception as e:
+            print(f"⚠️ Error reading {filename}: {e}")
+            continue
+
+        df["Date"] = date
+        yearly_data.setdefault(year, []).append(df)
+
+    for year, dfs in yearly_data.items():
+        combined_df = pd.concat(dfs, ignore_index=True)
+        output_path = os.path.join(output_dir, f"Accidents_{year}.xlsx")
+        combined_df.to_excel(output_path, index=False)
+        print(f"✅ Saved {output_path}")

@@ -240,17 +240,24 @@ def detect_header_row_by_expected(path, max_preview_rows=40, expected_tokens=EXP
 def read_report_file_with_header(path, preview_header_rows=40):
     """
     Detect header row and return cleaned DataFrame and detected header row index.
+    Accident table stops before 'SUMMARY'.
     """
     header_row = detect_header_row_by_expected(path, max_preview_rows=preview_header_rows)
     try:
         if header_row is not None:
             df = pd.read_excel(path, header=header_row)
         else:
-            # fallback: read default (pandas will pick first non-empty row)
             df = pd.read_excel(path, header=0)
     except Exception as e:
         print(f"⚠️ Error reading {os.path.basename(path)}: {e}")
         return None, header_row
+
+    # --- cutoff before SUMMARY row ---
+    if not df.empty:
+        mask = df.astype(str).apply(lambda row: row.str.contains("SUMMARY", case=False, na=False)).any(axis=1)
+        if mask.any():
+            cutoff_row = mask.idxmax()   # first index where SUMMARY appears
+            df = df.iloc[:cutoff_row, :]
 
     # drop completely empty columns and rows
     df = df.dropna(axis=1, how='all')

@@ -227,7 +227,7 @@ def plot_hourly_patterns(gdf):
     pivot = gdf.groupby(['dayofweek', 'hour']).size().unstack(fill_value=0)
 
     plt.figure(figsize=(12, 6))
-    plt.imshow(pivot, aspect='auto', cmap="Reds")
+    plt.imshow(pivot, aspect='auto')
     plt.title("Crash Heatmap: Day of Week vs Hour")
     plt.xlabel("Hour of Day")
     plt.ylabel("Day of Week (0=Mon, 6=Sun)")

@@ -148,3 +148,88 @@ def view(data: Union[pd.DataFrame, Any]) -> None:
 def labelled(data: Union[pd.DataFrame, Any]) -> Union[pd.DataFrame, Any]:
     """Provide a labelled set of data ready for supervised learning."""
     raise NotImplementedError
+
+
+
+import matplotlib.pyplot as plt
+
+def plot_crash_trends(gdf):
+    """
+    Plots total crash counts per year and monthly crash counts for each year.
+
+    Parameters:
+        gdf (GeoDataFrame or DataFrame): Must contain 'year' and 'month' columns.
+    """
+
+    # --- Yearly counts ---
+    yearly_counts = gdf.groupby('year').size().reset_index(name='count')
+    yearly_counts.plot(x='year', y='count', marker='o', linestyle='-')
+    plt.title("Total crash counts per year")
+    plt.xlabel("Year")
+    plt.ylabel("Number of crashes")
+    plt.show()
+
+    # --- Monthly counts ---
+    monthly_counts = gdf.groupby(['year', 'month']).size().reset_index(name='count')
+    years = monthly_counts['year'].unique()
+
+    for year in years:
+        monthly_counts_year = monthly_counts[monthly_counts['year'] == year]
+        # reindex months to ensure all 12 months appear
+        monthly_counts_year = monthly_counts_year.set_index('month').reindex(range(1, 13), fill_value=0)
+
+        monthly_counts_year.plot(kind='bar', y='count', legend=False)
+        plt.title(f"Monthly crash counts for {year}")
+        plt.xlabel("Month")
+        plt.ylabel("Number of crashes")
+        plt.xticks(range(0, 12), range(1, 13), rotation=0)
+        plt.show()
+
+def plot_monthly_totals(gdf):
+    """
+    Plots total crash counts by month aggregated across all years.
+
+    Parameters:
+        gdf (GeoDataFrame or DataFrame): Must contain 'month' column (1–12).
+    """
+
+    month_totals = gdf['month'].value_counts().sort_index()
+
+    month_totals.plot(kind='bar', legend=False)
+    plt.title("Total crash counts by month (all years)")
+    plt.xlabel("Month")
+    plt.ylabel("Number of crashes")
+    plt.xticks(range(0, 12), range(1, 13), rotation=0)
+    plt.show()
+
+
+def plot_hourly_patterns(gdf):
+    """
+    Plots:
+    1. Bar chart of crashes by hour of the day
+    2. Heatmap of crashes (day of week vs hour)
+
+    Parameters:
+        gdf (GeoDataFrame or DataFrame): Must contain 'hour' and 'dayofweek' columns.
+            - 'hour' should be 0–23
+            - 'dayofweek' should be 0=Mon, ..., 6=Sun
+    """
+
+    # --- Crashes by hour of the day ---
+    hour_counts = gdf['hour'].value_counts().sort_index()
+    hour_counts.plot(kind='bar')
+    plt.title("Crashes by Hour of Day")
+    plt.xlabel("Hour")
+    plt.ylabel("Crash Count")
+    plt.show()
+
+    # --- Heatmap: dayofweek vs hour ---
+    pivot = gdf.groupby(['dayofweek', 'hour']).size().unstack(fill_value=0)
+
+    plt.figure(figsize=(12, 6))
+    plt.imshow(pivot, aspect='auto', cmap="Reds")
+    plt.title("Crash Heatmap: Day of Week vs Hour")
+    plt.xlabel("Hour of Day")
+    plt.ylabel("Day of Week (0=Mon, 6=Sun)")
+    plt.colorbar(label="Number of crashes")
+    plt.show()

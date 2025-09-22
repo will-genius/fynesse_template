@@ -105,51 +105,7 @@ def analyze_data(data: Union[pd.DataFrame, Any]) -> dict[str, Any]:
         print(f"Error analyzing data: {e}")
         return {"error": str(e)}
 
-import geopandas as gpd
-import folium
-from folium.plugins import MarkerCluster
 
-def plot_crash_map(gdf, country_name="Kenya"):
-    """
-    Plots crash locations on a Folium map with clustering,
-    overlaying the boundary of a given country.
-
-    Parameters:
-        gdf (GeoDataFrame or DataFrame): Must have 'latitude', 'longitude', 
-                                         'crash_id', and 'crash_datetime'.
-        country_name (str): Country to highlight (default = 'Kenya').
-
-    Returns:
-        folium.Map: Interactive map with crashes plotted.
-    """
-    # --- Download world boundaries 
-    url = "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip"
-    world = gpd.read_file(url)
-
-    country = world[world["NAME"] == country_name]
-
-    if country.empty:
-        raise ValueError(f"Country '{country_name}' not found in shapefile.")
-
-    
-    minx, miny, maxx, maxy = country.total_bounds
-
-    # Create Folium map centered on crashes
-    m = folium.Map(location=[gdf['latitude'].mean(), gdf['longitude'].mean()], zoom_start=6)
-    m.fit_bounds([[miny, minx], [maxy, maxx]])
-
-    
-    folium.GeoJson(country.geometry, name=f"{country_name} Boundary").add_to(m)
-
-    # Add clustered crash markers
-    marker_cluster = MarkerCluster().add_to(m)
-    for _, row in gdf.iterrows():
-        folium.Marker(
-            location=[row['latitude'], row['longitude']],
-            popup=f"Crash ID: {row['crash_id']}<br>Datetime: {row['crash_datetime']}"
-        ).add_to(marker_cluster)
-
-    return m
 
 
 import osmnx as ox

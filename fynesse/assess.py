@@ -169,21 +169,7 @@ def plot_crash_trends(gdf):
     plt.ylabel("Number of crashes")
     plt.show()
 
-    # --- Monthly counts ---
-    monthly_counts = gdf.groupby(['year', 'month']).size().reset_index(name='count')
-    years = monthly_counts['year'].unique()
-
-    for year in years:
-        monthly_counts_year = monthly_counts[monthly_counts['year'] == year]
-        # reindex months to ensure all 12 months appear
-        monthly_counts_year = monthly_counts_year.set_index('month').reindex(range(1, 13), fill_value=0)
-
-        monthly_counts_year.plot(kind='bar', y='count', legend=False)
-        plt.title(f"Monthly crash counts for {year}")
-        plt.xlabel("Month")
-        plt.ylabel("Number of crashes")
-        plt.xticks(range(0, 12), range(1, 13), rotation=0)
-        plt.show()
+   
 
 def plot_monthly_totals(gdf):
     """
@@ -279,3 +265,95 @@ def plot_crash_map(gdf, country_name="Kenya"):
         ).add_to(marker_cluster)
 
     return m
+
+import osmnx as ox
+import geopandas as gpd
+import folium
+import ipywidgets as widgets
+from IPython.display import display, IFrame
+import os
+
+def risk_visualizer(gdf, lon_col="longitude", lat_col="latitude", cache_dir="cached_graphs"):
+    """
+    Interactive crash risk visualization by county using Folium with a color legend.
+    
+    Parameters
+    ----------
+    gdf : GeoDataFrame
+        Crash dataset with latitude/longitude.
+    lon_col : str
+        Column name for longitude in gdf.
+    lat_col : str
+        Column name for latitude in gdf.
+    cache_dir : str
+        Directory to cache graphml files to avoid redownloading.
+    """
+    os.makedirs(cache_dir, exist_ok=True)
+
+    counties = ["Nairobi, Kenya", "Machakos, Kenya", "Kiambu, Kenya", "Murang'a, Kenya", "Kajiado, Kenya"]
+
+    dropdown = widgets.Dropdown(
+        options=[("Select a county...", None)] + [(c, c) for c in counties],
+        description="Select County:",
+        value=None,   
+        style={'description_width': 'initial'},
+        layout=widgets.Layout(width="50%")
+    )
+
+    def process_county(county_name):
+        if county_name is None:
+            print("👉 Please select a county to continue.")
+            return
+
+        # --- caching logic ---
+        safe_name = county_name.replace(" ", "_").replace(",", "")
+        graph_path = os.path.join(cache_dir, f"{safe_name}.graphml")
+
+        if os.path.exists(graph_path):
+            print(f"✅ Loading cached graph for {county_name}...")
+            G = ox.load_graphml(graph_path)
+        else:
+            print(f"📥 Downloading road network for {county_name}...")
+            G = ox.graph_from_place(county_name, network_type="drive")
+            ox.save_graphml(G, graph_path)
+            print(f"✅ Graph cached at {graph_path}")
+
+        # --- crash mapping ---
+        try:
+            nearest_edges = ox.distance.nearest_edges(
+                G,
+                X=gdf[lon_col].values,
+                Y=gdf[lat_col].values,
+                return_dist=False
+            )
+        except Exception:
+            nearest_edges = ox.nearest_edges(
+                G,
+                gdf[lon_col].values,
+                Y=gdf[lat_col].values
+            )
+
+        nearest_edges_list = [list(edge) for edge in nearest_edges]
+        gdf[['u', 'v', 'key']] = nearest_edges_list
+
+        edge_crash_counts = gdf.groupby(['u', 'v', 'key']).size().reset_index(name='crash_count')
+        edge_risk_dict = edge_crash_counts.set_index(['u', 'v', 'key'])['crash_count'].to_dict()
+
+        for u, v, k, data in G.edges(keys=True, data=True):
+            risk_val = edge_risk_dict.get((u, v, k), 0)
+            data['crash_count'] = risk_val
+            data['risk'] = risk_val
+
+        edges_gdf = ox.graph_to_gdfs(G, nodes=False, edges=True).reset_index()
+
+        print("\n📊 Roads with crash counts & risk factors:")
+        if "name" in edges_gdf.columns:
+            edges_gdf["name"] = edges_gdf["name"].fillna("Unnamed road")
+            display(edges_gdf[['u','v','key','name','crash_count','risk']].sort_values("risk", ascending=False).head(20))
+        else:
+            display(edges_gdf[['u','v','key','crash_count','risk']].sort_values("risk", ascending=False).head(20))
+
+        
+
+    widgets.interact(process_county, county_name=dropdown)
+

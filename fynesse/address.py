@@ -170,14 +170,12 @@ import osmnx as ox
 import networkx as nx
 import folium
 
-def plot_routes_in_nairobi(length_weight=0.1):
+def plot_routes_in_nairobi(G, length_weight=0.1):
     """
     Asks the user for start and destination in Nairobi,
     computes shortest vs safer routes, and plots them on a Folium map.
     """
-    print("Downloading Nairobi road network...")
-    G = ox.graph_from_place("Nairobi, Kenya", network_type="drive")
-    print("Graph loaded!")
+    
 
     # --- Safer route function ---
     def safer_route(G, origin_node, destination_node, weight='risk', length_weight=0.1):

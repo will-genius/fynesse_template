@@ -235,8 +235,8 @@ def plot_routes_in_nairobi(G,
         print(f"Geocoding failed: {e}")
         return None
 
-    print(f"Start: {start_place} → {start_point}")
-    print(f"Destination: {end_place} → {end_point}")
+    print(f"Start: {start_place}")
+    print(f"Destination: {end_place}")
 
     # --- Find nearest nodes in graph ---
     origin_node = ox.distance.nearest_nodes(G, X=start_point[1], Y=start_point[0])

@@ -249,7 +249,7 @@ def read_report_file_with_header(path, preview_header_rows=40):
         else:
             df = pd.read_excel(path, header=0)
     except Exception as e:
-        print(f"⚠️ Error reading {os.path.basename(path)}: {e}")
+        print(f"Error reading {os.path.basename(path)}: {e}")
         return None, header_row
 
     # --- cutoff before SUMMARY row ---
@@ -284,7 +284,7 @@ def combine_reports_folder(folder_path, output_dir="combined_reports", preview=F
     os.makedirs(output_dir, exist_ok=True)
     files = sorted(glob.glob(os.path.join(folder_path, "*.xlsx")) + glob.glob(os.path.join(folder_path, "*.xls")))
     if not files:
-        print("⚠️ No Excel files found in the folder.")
+        print("No Excel files found in the folder.")
         return {}
 
     yearly = {}
@@ -292,7 +292,7 @@ def combine_reports_folder(folder_path, output_dir="combined_reports", preview=F
         fname = os.path.basename(f)
         date = extract_date_from_filename(fname)
         if not date:
-            print(f"⚠️ Could not extract date from {fname}")
+            print(f"Could not extract date from {fname}")
             continue
 
         df, header_row = read_report_file_with_header(f, preview_header_rows=preview_header_rows)
@@ -336,7 +336,7 @@ def combine_reports_folder(folder_path, output_dir="combined_reports", preview=F
         combined = pd.concat(dfs, ignore_index=True, sort=False)
         out_path = os.path.join(output_dir, f"Accidents_{year}.xlsx")
         combined.to_excel(out_path, index=False)
-        print(f"✅ Saved {out_path}  (files: {len(dfs)})")
+        print(f" Saved {out_path}  (files: {len(dfs)})")
         result[year] = combined
 
     return result

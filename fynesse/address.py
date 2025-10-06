@@ -162,7 +162,7 @@ def assign_crash_risk_to_edges(G, gdf, lon_col="longitude", lat_col="latitude"):
         data['crash_count'] = risk_val
         data['risk'] = risk_val   # same as crash_count for now
 
-    print("✅ Assigned risk values to graph edges.")
+    print("Assigned risk values to graph edges.")
     return gdf, G
 
 
@@ -170,14 +170,39 @@ import osmnx as ox
 import networkx as nx
 import folium
 
-def plot_routes_in_nairobi(G, length_weight=0.1):
-    """
-    Asks the user for start and destination in Nairobi,
-    computes shortest vs safer routes, and plots them on a Folium map.
-    """
-    
 
-    # --- Safer route function ---
+
+def plot_routes_in_nairobi(G, 
+                           start_place="Uhuru Gardens", 
+                           end_place="Kenya National Archives", 
+                           length_weight=0.1 
+                          ):
+    """
+    Computes and visualizes shortest vs safer routes within Nairobi on a Folium map.
+
+    Parameters
+    ----------
+    G : networkx.MultiDiGraph
+        Nairobi road network graph.
+    start_place : str
+        Starting location name (default: 'Uhuru Gardens').
+    end_place : str
+        Destination location name (default: 'Kenya National Archives').
+    length_weight : float
+        Weight for route optimization — controls trade-off between safety and distance.
+    auto_display : bool
+        If True, displays the map in notebooks automatically.
+    
+    Returns
+    -------
+    folium.Map
+        Interactive map with plotted routes.
+    """
+    import networkx as nx
+    import folium
+    import osmnx as ox
+
+    # --- Safer route computation ---
     def safer_route(G, origin_node, destination_node, weight='risk', length_weight=0.1):
         def custom_weight(u, v, data):
             risk = data.get(weight, 0)
@@ -189,7 +214,7 @@ def plot_routes_in_nairobi(G, length_weight=0.1):
             print("No safe path found.")
             return None
 
-    # --- Helper: add route to map ---
+    # --- Add route to map ---
     def add_route_to_map(G, route_nodes, fmap, color="blue", weight=5, popup="Route"):
         route_edges = list(zip(route_nodes[:-1], route_nodes[1:]))
         coords = []
@@ -202,17 +227,18 @@ def plot_routes_in_nairobi(G, length_weight=0.1):
                 coords.extend([(G.nodes[u]["y"], G.nodes[u]["x"]), (G.nodes[v]["y"], G.nodes[v]["x"])])
         folium.PolyLine(coords, color=color, weight=weight, opacity=0.8, popup=popup).add_to(fmap)
 
-    # --- User input ---
-    start_place = input("Enter START location: ")
-    end_place = input("Enter DESTINATION location: ")
+    # --- Geocode start and end ---
+    try:
+        start_point = ox.geocode(f"{start_place}, Nairobi, Kenya")
+        end_point = ox.geocode(f"{end_place}, Nairobi, Kenya")
+    except Exception as e:
+        print(f"Geocoding failed: {e}")
+        return None
 
-    # --- Geocode ---
-    start_point = ox.geocode(start_place + ", Nairobi, Kenya")
-    end_point = ox.geocode(end_place + ", Nairobi, Kenya")
-    print(f"Start coordinates: {start_point}")
-    print(f"Destination coordinates: {end_point}")
+    print(f"Start: {start_place} → {start_point}")
+    print(f"Destination: {end_place} → {end_point}")
 
-    # --- Nearest graph nodes ---
+    # --- Find nearest nodes in graph ---
     origin_node = ox.distance.nearest_nodes(G, X=start_point[1], Y=start_point[0])
     destination_node = ox.distance.nearest_nodes(G, X=end_point[1], Y=end_point[0])
 
@@ -221,22 +247,21 @@ def plot_routes_in_nairobi(G, length_weight=0.1):
         shortest_path_nodes = nx.shortest_path(G, source=origin_node, target=destination_node, weight="length")
     except nx.NetworkXNoPath:
         shortest_path_nodes = None
-        print("No shortest path found!")
+        print(" No shortest path found!")
 
     safer_path_nodes = safer_route(G, origin_node, destination_node, length_weight=length_weight)
 
-    # --- Folium Map ---
+    # --- Folium map ---
     m = folium.Map(location=start_point, zoom_start=13)
 
     if shortest_path_nodes:
         add_route_to_map(G, shortest_path_nodes, m, color="blue", popup="Shortest Route")
-
     if safer_path_nodes:
-        add_route_to_map(G, safer_path_nodes, m, color="red", popup="SAFE Route 🚦")
+        add_route_to_map(G, safer_path_nodes, m, color="red", popup="Safer Route 🚦")
 
     # --- Add markers ---
     folium.Marker(start_point, popup="Start: " + start_place, icon=folium.Icon(color="green")).add_to(m)
     folium.Marker(end_point, popup="Destination: " + end_place, icon=folium.Icon(color="red")).add_to(m)
 
-    print("\n✅ Routes plotted successfully! Blue = shortest, Red = safe")
+    print("\nRoutes plotted successfully! (Blue = shortest, Red = safer)")
     return m

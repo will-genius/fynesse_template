@@ -295,28 +295,28 @@ def risk_visualizer(gdf, lon_col="longitude", lat_col="latitude", cache_dir="cac
     dropdown = widgets.Dropdown(
         options=[("Select a county...", None)] + [(c, c) for c in counties],
         description="Select County:",
-        value=None,   
+        value="Nairobi, Kenya",   
         style={'description_width': 'initial'},
         layout=widgets.Layout(width="50%")
     )
 
     def process_county(county_name):
         if county_name is None:
-            print("👉 Please select a county to continue.")
-            return
+            print("defaulting to Nairobi, Kenya.\n")
+            county_name = "Nairobi, Kenya"
 
         # --- caching logic ---
         safe_name = county_name.replace(" ", "_").replace(",", "")
         graph_path = os.path.join(cache_dir, f"{safe_name}.graphml")
 
         if os.path.exists(graph_path):
-            print(f"✅ Loading cached graph for {county_name}...")
+            print(f"Loading cached graph for {county_name}...")
             G = ox.load_graphml(graph_path)
         else:
-            print(f"📥 Downloading road network for {county_name}...")
+            print(f" Downloading road network for {county_name}...")
             G = ox.graph_from_place(county_name, network_type="drive")
             ox.save_graphml(G, graph_path)
-            print(f"✅ Graph cached at {graph_path}")
+            print(f"Graph cached at {graph_path}")
 
         # --- crash mapping ---
         try:
@@ -346,7 +346,7 @@ def risk_visualizer(gdf, lon_col="longitude", lat_col="latitude", cache_dir="cac
 
         edges_gdf = ox.graph_to_gdfs(G, nodes=False, edges=True).reset_index()
 
-        print("\n📊 Roads with crash counts & risk factors:")
+        print("\n Roads with crash counts & risk factors:")
         if "name" in edges_gdf.columns:
             edges_gdf["name"] = edges_gdf["name"].fillna("Unnamed road")
             display(edges_gdf[['u','v','key','name','crash_count','risk']].sort_values("risk", ascending=False).head(20))
